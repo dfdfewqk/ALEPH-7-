@@ -2,13 +2,17 @@
 -- Requires the t07_* tables created by the earlier parallel-store migration.
 -- No secret values are stored in this file.
 
-create or replace function public.t07_is_active_session()
+create schema if not exists private;
+revoke all on schema private from public, anon;
+grant usage on schema private to authenticated, service_role;
+
+create or replace function private.t07_is_active_session()
 returns boolean
 language sql
 stable
 security definer
-set search_path = auth, public
-as $$
+set search_path = auth, public, private
+as $
   select
     auth.uid() is not null
     and nullif(auth.jwt()->>'session_id','') is not null
@@ -19,10 +23,23 @@ as $$
         and s.user_id = auth.uid()
         and (s.not_after is null or s.not_after > now())
     );
-$$;
+$;
 
-revoke all on function public.t07_is_active_session() from public, anon;
-grant execute on function public.t07_is_active_session() to authenticated;
+revoke all on function private.t07_is_active_session() from public, anon;
+grant execute on function private.t07_is_active_session() to authenticated, service_role;
+
+create or replace function public.t07_session_status()
+returns boolean
+language sql
+stable
+security invoker
+set search_path = public, private
+as $
+  select private.t07_is_active_session();
+$;
+
+revoke all on function public.t07_session_status() from public, anon;
+grant execute on function public.t07_session_status() to authenticated;
 
 create or replace function public.t07_enforce_owner()
 returns trigger
@@ -76,7 +93,7 @@ end $$;
 -- Example:
 -- create policy t07_plans_select_own on public.t07_plans
 -- for select to authenticated
--- using (user_id = auth.uid() and public.t07_is_active_session());
+-- using (user_id = auth.uid() and private.t07_is_active_session());
 
 create or replace function public.t07_record_today_observation()
 returns public.t07_daily_observations
@@ -92,7 +109,7 @@ declare
   v_value numeric:=0;
   v_result public.t07_daily_observations%rowtype;
 begin
-  if v_uid is null or not public.t07_is_active_session() then
+  if v_uid is null or not private.t07_is_active_session() then
     raise exception 'AUTH_REQUIRED' using errcode='42501';
   end if;
 
