@@ -8,3 +8,10 @@ T06 최종본을 기준으로 인증·권한 검증을 추가하는 T07 저장�
 - Supabase JS SDK: `@supabase/supabase-js@2.117.3`
 
 > 이 저장소는 T06 소스의 고정 commit을 기준으로 복사해 시작했습니다.
+
+## T07 result URL
+
+- Public login screen: https://bcwzllejypavwgsfqfbm.supabase.co/functions/v1/t07-app
+- Source: https://github.com/dfdfewqk/ALEPH-7-
+
+GitHub Pages workflow is also included, but the Supabase Edge URL above is the immediately deployed result URL.
