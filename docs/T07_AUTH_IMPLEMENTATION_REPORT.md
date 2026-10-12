@@ -12,7 +12,7 @@
 - 데이터 권한: **PostgreSQL Row Level Security(RLS)**
 - 비밀번호 저장: **Supabase Auth의 bcrypt + 계정별 무작위 salt** (해시는 `auth.users.encrypted_password`에 저장)
 - 사용자 식별: Supabase Auth access token의 JWT `sub` / `session_id`
-- 로그아웃 세션 추가 검증: `auth.sessions`에 현재 `session_id`가 실제로 존재하는지 확인하는 `t07_is_active_session()`
+- 로그아웃 세션 추가 검증: private 스키마의 `private.t07_is_active_session()`이 `auth.sessions`에 현재 `session_id`가 실제로 존재하는지 확인하고, 공개 API에는 security-invoker 래퍼 `t07_session_status()`만 노출
 
 브라우저에는 Supabase publishable key만 두며 service role key, DB password, JWT signing secret은 두지 않는다.
 
@@ -36,6 +36,7 @@
 - 내 데이터 내보내기에 T07 5일 실험 데이터 추가
 - 계정 삭제 버튼 추가
 - T07 5일 사용 기록 UI 추가
+- `t07_record_today_observation()`으로 5일 지표를 실제 실행 기록에서 서버 계산
 
 ### Supabase migrations
 
@@ -66,6 +67,17 @@
 
 5. `t07_atomic_rule_change`
    - 목표의 하루 시간 변경과 규칙 변경 기록을 한 transaction 안에서 처리
+
+6. `t07_server_derived_daily_observation`
+   - Day 값은 브라우저가 보내는 숫자를 저장하지 않고 서버가 선택한 목표의 `execution_records.actual_minutes`를 합산
+   - 같은 날짜 중복, Day 순서, Day 3 전 규칙 변경 조건을 서버에서 검증
+
+7. `t07_lock_internal_helpers`
+   - trigger 전용 함수의 직접 EXECUTE 권한 제거
+
+8. `t07_move_active_session_check_private`
+   - 활성 session 검사 함수를 private schema로 이동
+   - RLS와 보호 RPC가 private 함수를 사용하도록 변경
 
 ### Edge Functions
 
@@ -107,4 +119,4 @@
 - **MFA(두 번째 인증 수단)를 구현하지 않았다.** 비밀번호가 노출되면 추가 인증 단계가 없다.
 - **비밀번호 재설정 전용 사용자 화면을 아직 구현하지 않았다.** 비밀번호를 잊은 사용자의 복구 흐름이 완전하지 않다.
 - **보안 이벤트 전용 감사 로그 화면을 구현하지 않았다.** 누가 언제 실패한 접근을 시도했는지를 앱 안에서 장기 추적하기 어렵다.
-- **Supabase의 leaked-password protection은 현재 프로젝트에서 꺼져 있다.** 이미 유출된 비밀번호를 추가로 차단하는 보호가 적용되지 않은 상태다.
+- **Supabase의 leaked-password protection은 현재 프로젝트에서 꺼져 있다.** 2026-10-12 보안 Advisor 재검사에서 남은 유일한 경고이며, 이미 유출된 비밀번호를 추가로 차단하는 보호가 적용되지 않은 상태다.
