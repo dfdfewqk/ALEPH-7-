@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="pds-build" content="2026-10-08-daily-goal-records-v1">
+<meta name="pds-build" content="2026-10-12-t07-auth-v1">
 <title>말과 함께 성장하는 다이어리</title>
 <style>
 :root{
@@ -1712,10 +1712,61 @@ input:focus,select:focus,textarea:focus{
   }
 }
 
+
+/* T07 AUTH */
+.authGate{min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(180deg,#f7f4ee 0,#eef2eb 100%)}
+.authCard{width:min(480px,100%);background:#fff;border:1px solid var(--line);border-radius:24px;padding:24px;box-shadow:var(--shadow)}
+.authBrand{font-size:11px;font-weight:900;letter-spacing:.16em;color:var(--accent)}
+.authTitle{font-size:32px;font-weight:950;letter-spacing:-.04em;margin:8px 0 6px}
+.authDesc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+.authTabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.authTabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.authForm{display:grid;gap:12px}
+.authForm label{display:grid;gap:6px;font-size:12px;font-weight:800}
+.authForm input{width:100%;border:1px solid var(--line);border-radius:11px;padding:11px 12px;background:#fff}
+.authStatus{margin-top:12px;padding:10px 12px;border-radius:11px;background:#f5f7f3;color:#4f5a4c;font-size:12px;line-height:1.5;min-height:38px}
+.authStatus.error{background:#fff0f0;color:#8d3f3f}
+.sessionBar{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.sessionInfo{font-size:11px;color:var(--muted)}
+.sessionActions{display:flex;gap:7px;flex-wrap:wrap}
+.t07LockNotice{margin-top:15px;padding:12px 14px;border:1px solid #cfdcc9;background:#f4f8f1;color:#455541;border-radius:14px;font-size:13px;line-height:1.5}
+
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
 </head>
 <body>
-<main>
+<section id="authGate" class="authGate">
+  <div class="authCard">
+    <div class="authBrand">ALEPH 7 · PLAN DO SEE NEXT</div>
+    <div class="authTitle">플랜두씨 다이어리 2</div>
+    <div class="authDesc">로그인한 계정의 기록만 열립니다. 비밀번호는 화면이나 제출 기록에 남기지 않습니다.</div>
+    <div class="authTabs">
+      <button class="btn active" id="showLoginBtn" type="button">로그인</button>
+      <button class="btn" id="showSignupBtn" type="button">회원가입</button>
+    </div>
+    <form id="loginForm" class="authForm">
+      <label>이메일<input id="loginEmail" type="email" autocomplete="username" required></label>
+      <label>비밀번호<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">로그인</button>
+    </form>
+    <form id="signupForm" class="authForm hide">
+      <label>이메일<input id="signupEmail" type="email" autocomplete="username" required></label>
+      <label>비밀번호<input id="signupPassword" type="password" autocomplete="new-password" minlength="6" required></label>
+      <label>비밀번호 확인<input id="signupPassword2" type="password" autocomplete="new-password" minlength="6" required></label>
+      <button class="btn primary" type="submit">학습용 계정 만들기</button>
+    </form>
+    <div id="authStatus" class="authStatus">로그인하면 내 다이어리만 불러옵니다.</div>
+  </div>
+</section>
+<main id="appShell" class="hide">
+<div id="sessionBar" class="sessionBar">
+  <div><strong>🔒 로그인된 다이어리</strong><div id="sessionInfo" class="sessionInfo">내 계정 자료만 표시됩니다.</div></div>
+  <div class="sessionActions">
+    <button id="requestLegacyBtn" class="btn ghost" type="button">기존 T06 자료 연결 요청</button>
+    <button id="logoutBtn" class="btn danger" type="button">로그아웃</button>
+  </div>
+</div>
+
 <header class="siteHeader">
   <div class="titleRow">
     <div class="horseEmblem" aria-hidden="true"><svg class="horseshoeSvg headerHorseshoe" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5.5 3.5v7.1a6.5 6.5 0 0 0 13 0V3.5h-3.6v7.1a2.9 2.9 0 1 1-5.8 0V3.5z" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.2" cy="5.3" r=".75" fill="currentColor"/><circle cx="7.2" cy="9" r=".75" fill="currentColor"/><circle cx="16.8" cy="5.3" r=".75" fill="currentColor"/><circle cx="16.8" cy="9" r=".75" fill="currentColor"/></svg></div>
@@ -1726,7 +1777,7 @@ input:focus,select:focus,textarea:focus{
     </div>
     <div id="todayLabel" class="todayBadge"></div>
   </div>
-  <div class="notice">지금은 로그인이 없어 링크를 아는 사람은 누구나 볼 수 있습니다. 남이 봐도 괜찮은 내용만 넣으세요</div>
+  <div class="t07LockNotice">로그인한 계정의 자료만 표시됩니다. 로그아웃하면 다이어리 자료 화면은 다시 잠깁니다.</div>
   <div class="horseHero" aria-label="말과 함께 성장하는 다이어리">
     <div class="heroCopy">
       <div class="heroEyebrow">MY HORSE JOURNEY</div>
@@ -2168,27 +2219,123 @@ input:focus,select:focus,textarea:focus{
 <script>
 const U="https://bcwzllejypavwgsfqfbm.supabase.co";
 const K="sb_publishable_rQOSzVLPSmRGAAGfnV5CVw_ZsyWj-4Z";
-const H={apikey:K,Authorization:"Bearer "+K,"Content-Type":"application/json",Prefer:"return=representation"};
-const S={
-  plans:[],history:[],tasks:[],execs:[],refs:[],taskRefs:[],events:[],progress:[],importantDates:[],dailyRecords:[],
-  plan:null,mainDate:null,planDate:null,calendarMonth:null,
-  editingPlan:null,editingTask:null,finishingTask:null,editingImportantDate:null
+const sb=window.supabase.createClient(U,K,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+let ACCESS_TOKEN=null;
+const TABLE_MAP={
+  plans:"t07_plans",plan_history:"t07_plan_history",plan_progress_items:"t07_plan_progress_items",
+  tasks:"t07_tasks",execution_records:"t07_execution_records",completion_events:"t07_completion_events",
+  reflections:"t07_reflections",task_reflections:"t07_task_reflections",
+  important_dates:"t07_important_dates",daily_goal_records:"t07_daily_goal_records",
+  claim_requests:"t07_claim_requests",experiment_setup:"t07_experiment_setup",
+  daily_observations:"t07_daily_observations",rule_changes:"t07_rule_changes"
 };
-const PRIORITY={high:"높음",medium:"중간",low:"낮음"};
-const $=id=>document.getElementById(id);
-const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul"}).format(new Date());
-const localDay=v=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul"}).format(new Date(v));
-const fmtDate=d=>d?new Date(d+"T00:00:00+09:00").toLocaleDateString("ko-KR",{month:"numeric",day:"numeric"}):"-";
-const fmtLongDate=d=>new Date(d+"T00:00:00+09:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"long"});
-const fmtDateTime=d=>new Date(d).toLocaleString("ko-KR",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
-const mins=n=>{n=Number(n)||0;const h=Math.floor(n/60),m=Math.round(n%60);return h?(h+"시간"+(m?" "+m+"분":"")):m+"분"};
-const num=n=>{const x=Number(n)||0;return Number.isInteger(x)?String(x):String(Math.round(x*100)/100)};
-function toast(msg){const e=$("toast");e.textContent=msg;e.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>e.classList.remove("show"),2200)}
-function openModal(id){$(id).classList.add("open")}function closeModal(id){$(id).classList.remove("open")}
-function clear(e){while(e.firstChild)e.removeChild(e.firstChild)}
-function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
-async function api(path,opts={}){const r=await fetch(U+"/rest/v1/"+path,{...opts,headers:{...H,...(opts.headers||{})}});let d=null;try{d=r.status===204?null:await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.hint||d?.details||"요청에 실패했습니다.");return d}
-async function rpc(name,body){const r=await fetch(U+"/rest/v1/rpc/"+name,{method:"POST",headers:H,body:JSON.stringify(body)});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||"완료 처리에 실패했습니다.");return d}
+const RPC_MAP={
+  complete_task:"t07_complete_task",
+  cancel_task_completion:"t07_cancel_task_completion",
+  sync_daily_goal_record:"t07_sync_daily_goal_record"
+};
+function mapPath(path){
+  const i=path.indexOf("?");
+  const base=i<0?path:path.slice(0,i),rest=i<0?"":path.slice(i);
+  return (TABLE_MAP[base]||base)+rest;
+}
+function authHeaders(extra={}){
+  if(!ACCESS_TOKEN)throw new Error("로그인이 필요합니다.");
+  return {apikey:K,Authorization:"Bearer "+ACCESS_TOKEN,"Content-Type":"application/json",Prefer:"return=representation",...extra};
+}
+async function api(path,opts={}){
+  const r=await fetch(U+"/rest/v1/"+mapPath(path),{...opts,headers:authHeaders(opts.headers||{})});
+  let d=null;try{d=r.status===204?null:await r.json()}catch{}
+  if(!r.ok)throw new Error(d?.message||d?.hint||d?.details||"요청에 실패했습니다.");
+  return d
+}
+async function rpc(name,body){
+  const rpcName=RPC_MAP[name]||name;
+  const r=await fetch(U+"/rest/v1/rpc/"+rpcName,{method:"POST",headers:authHeaders(),body:JSON.stringify(body)});
+  let d=null;try{d=await r.json()}catch{}
+  if(!r.ok)throw new Error(d?.message||"완료 처리에 실패했습니다.");
+  return d
+}
+
+function setAuthStatus(message,isError=false){
+  const e=document.getElementById("authStatus");if(!e)return;
+  e.textContent=message;e.classList.toggle("error",!!isError)
+}
+function setAuthMode(mode){
+  const login=mode==="login";
+  $("loginForm").classList.toggle("hide",!login);
+  $("signupForm").classList.toggle("hide",login);
+  $("showLoginBtn").classList.toggle("active",login);
+  $("showSignupBtn").classList.toggle("active",!login);
+  setAuthStatus(login?"로그인하면 내 다이어리만 불러옵니다.":"새 계정을 만든 뒤 로그인해 주세요.")
+}
+async function enterAuthenticatedApp(session){
+  if(!session?.access_token)return showSignedOut();
+  ACCESS_TOKEN=session.access_token;
+  $("authGate").classList.add("hide");
+  $("appShell").classList.remove("hide");
+  $("sessionInfo").textContent="인증된 계정 · 자료는 RLS로 분리됩니다.";
+  try{await load()}catch(e){console.error(e);toast("내 자료를 불러오지 못했습니다.")}
+}
+function clearDiaryState(){
+  S.plans=[];S.history=[];S.tasks=[];S.execs=[];S.refs=[];S.taskRefs=[];S.events=[];S.progress=[];S.importantDates=[];S.dailyRecords=[];
+  S.plan=null
+}
+function showSignedOut(){
+  ACCESS_TOKEN=null;clearDiaryState();
+  $("appShell").classList.add("hide");
+  $("authGate").classList.remove("hide");
+  setAuthMode("login")
+}
+$("showLoginBtn").onclick=()=>setAuthMode("login");
+$("showSignupBtn").onclick=()=>setAuthMode("signup");
+$("loginForm").onsubmit=async e=>{
+  e.preventDefault();setAuthStatus("로그인 확인 중...");
+  const email=$("loginEmail").value.trim(),password=$("loginPassword").value;
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  $("loginPassword").value="";
+  if(error||!data.session){setAuthStatus("이메일 또는 비밀번호가 올바르지 않습니다.",true);return}
+  setAuthStatus("로그인되었습니다.");
+  await enterAuthenticatedApp(data.session)
+};
+$("signupForm").onsubmit=async e=>{
+  e.preventDefault();
+  const email=$("signupEmail").value.trim(),p1=$("signupPassword").value,p2=$("signupPassword2").value;
+  if(p1!==p2){setAuthStatus("비밀번호 확인 값이 일치하지 않습니다.",true);return}
+  setAuthStatus("가입 요청 중...");
+  const {data,error}=await sb.auth.signUp({email,password:p1});
+  $("signupPassword").value="";$("signupPassword2").value="";
+  if(error){setAuthStatus("가입 요청을 처리하지 못했습니다. 입력값을 확인해 주세요.",true);return}
+  if(data.session){
+    setAuthStatus("계정이 만들어졌고 로그인되었습니다.");
+    await enterAuthenticatedApp(data.session)
+  }else{
+    setAuthStatus("가입 요청을 처리했습니다. 확인 메일이 왔다면 확인한 뒤 로그인해 주세요.");
+    setAuthMode("login")
+  }
+};
+$("logoutBtn").onclick=async()=>{
+  try{await sb.auth.signOut({scope:"global"})}catch(e){console.error(e)}
+  showSignedOut()
+};
+$("requestLegacyBtn").onclick=async()=>{
+  try{
+    await api("claim_requests",{method:"POST",body:"{}"});
+    toast("기존 T06 자료 연결 요청을 남겼습니다.")
+  }catch(e){
+    if(String(e.message).toLowerCase().includes("duplicate"))toast("이미 연결 요청이 있습니다.");
+    else toast("연결 요청을 확인하지 못했습니다.")
+  }
+};
+sb.auth.onAuthStateChange((event,session)=>{
+  if(session?.access_token)ACCESS_TOKEN=session.access_token;
+  if(event==="SIGNED_OUT")showSignedOut()
+});
+async function bootstrapAuth(){
+  const {data,error}=await sb.auth.getSession();
+  if(error||!data.session){showSignedOut();return}
+  await enterAuthenticatedApp(data.session)
+}
 
 const activeTasks=()=>S.tasks.filter(t=>!t.deleted_at);
 const planTasks=pid=>activeTasks().filter(t=>t.plan_id===pid);
@@ -3488,7 +3635,7 @@ async function load(skipAutoComplete=false){
   if(!S.planDate)S.planDate=today();
   drawAll();drawRunningTimerBanner()
 }
-(async()=>{try{await load()}catch(e){console.error(e);toast("DB를 불러오지 못했습니다.")}})();
+bootstrapAuth().catch(e=>{console.error(e);showSignedOut()});
 </script>
 </body>
 </html>
