@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="pds-build" content="2026-10-12-t07-auth-experiment-v2">
+<meta name="pds-build" content="2026-10-12-t07-security-evidence-v3">
 <title>말과 함께 성장하는 다이어리</title>
 <style>
 :root{
@@ -1773,6 +1773,11 @@ input:focus,select:focus,textarea:focus{
       <button class="btn primary" type="submit">학습용 계정 만들기</button>
     </form>
     <div id="authStatus" class="authStatus">로그인하면 내 다이어리만 불러옵니다.</div>
+    <div class="actions" style="margin-top:10px">
+      <button id="anonProtectedTestBtn" class="btn ghost" type="button">비로그인 보호 요청 확인</button>
+      <button id="revokedSessionTestBtn" class="btn ghost hide" type="button">로그아웃된 세션 재요청 확인</button>
+    </div>
+    <div id="loggedOutSecurityResult" class="contextBox hide" style="margin-top:10px"></div>
   </div>
 </section>
 <main id="appShell" class="hide">
@@ -1780,6 +1785,8 @@ input:focus,select:focus,textarea:focus{
   <div><strong>🔒 로그인된 다이어리</strong><div id="sessionInfo" class="sessionInfo">내 계정 자료만 표시됩니다.</div></div>
   <div class="sessionActions">
     <button id="requestLegacyBtn" class="btn ghost" type="button">기존 T06 자료 연결 요청</button>
+    <button id="securityCheckBtn" class="btn ghost" type="button">보안 확인</button>
+    <button id="changePasswordBtn" class="btn ghost" type="button">비밀번호 변경</button>
     <button id="deleteAccountBtn" class="btn ghost" type="button">계정 삭제</button>
     <button id="logoutBtn" class="btn danger" type="button">로그아웃</button>
   </div>
@@ -2278,6 +2285,34 @@ input:focus,select:focus,textarea:focus{
   </div>
 </div>
 
+<!-- T07 SECURITY EVIDENCE -->
+<div class="modal" id="securityModal">
+  <div class="dialog">
+    <div class="modalHead"><h2>보안 확인</h2><button class="btn ghost closeModal" type="button">닫기</button></div>
+    <div class="dialogBody">
+      <div class="contextBox">토큰 원문은 표시하지 않습니다. 같은 보호 API 주소와 POST 방식으로 로그인 전·후 결과를 비교합니다.</div>
+      <div id="sessionMetadata" class="contextBox" style="margin-top:10px"></div>
+      <div id="securityResult" class="contextBox" style="margin-top:10px"></div>
+      <button id="runLoggedInProtectedTestBtn" class="btn primary" type="button" style="margin-top:10px;width:100%">로그인 상태 보호 요청 실행</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="passwordModal">
+  <div class="dialog">
+    <div class="modalHead"><h2>비밀번호 변경</h2><button class="btn ghost closeModal" type="button">닫기</button></div>
+    <div class="dialogBody">
+      <form id="passwordChangeForm" class="authForm">
+        <label>현재 비밀번호<input id="currentPassword" type="password" autocomplete="current-password" required></label>
+        <label>새 비밀번호<input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>새 비밀번호 확인<input id="newPassword2" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button class="btn primary" type="submit">비밀번호 변경</button>
+      </form>
+      <div class="muted" style="margin-top:10px">변경 뒤 현재 세션을 종료하고 로그인 화면으로 돌아갑니다. 비밀번호 원문은 앱 기록에 저장하지 않습니다.</div>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -2305,6 +2340,7 @@ const U="https://bcwzllejypavwgsfqfbm.supabase.co";
 const K="sb_publishable_rQOSzVLPSmRGAAGfnV5CVw_ZsyWj-4Z";
 const sb=window.supabase.createClient(U,K,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let ACCESS_TOKEN=null;
+let LAST_REVOKED_TOKEN=null;
 const TABLE_MAP={
   plans:"t07_plans",plan_history:"t07_plan_history",plan_progress_items:"t07_plan_progress_items",
   tasks:"t07_tasks",execution_records:"t07_execution_records",completion_events:"t07_completion_events",
@@ -2342,6 +2378,28 @@ async function rpc(name,body){
   return d
 }
 
+const PROTECTED_EVIDENCE_BODY={resource:"plans",action:"list"};
+async function t07ProtectedRequest(token){
+  const headers={apikey:K,"Content-Type":"application/json"};
+  if(token)headers.Authorization="Bearer "+token;
+  const r=await fetch(U+"/functions/v1/t07-protected",{
+    method:"POST",headers,body:JSON.stringify(PROTECTED_EVIDENCE_BODY)
+  });
+  let data=null;try{data=await r.json()}catch{}
+  return{status:r.status,data}
+}
+function decodeJwtPayload(token){
+  try{
+    const part=token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+    const json=decodeURIComponent(atob(part).split("").map(ch=>"%"+("00"+ch.charCodeAt(0).toString(16)).slice(-2)).join(""));
+    return JSON.parse(json)
+  }catch{return{}}
+}
+function maskedSessionMetadata(token){
+  const p=decodeJwtPayload(token),sid=String(p.session_id||"");
+  const exp=p.exp?new Date(Number(p.exp)*1000).toLocaleString("ko-KR"):"확인 불가";
+  return "JWT 세션 · session_id "+(sid?sid.slice(0,8)+"…":"확인 불가")+" · 만료 "+exp
+}
 function setAuthStatus(message,isError=false){
   const e=document.getElementById("authStatus");if(!e)return;
   e.textContent=message;e.classList.toggle("error",!!isError)
@@ -2370,6 +2428,7 @@ function showSignedOut(){
   ACCESS_TOKEN=null;clearDiaryState();
   $("appShell").classList.add("hide");
   $("authGate").classList.remove("hide");
+  $("revokedSessionTestBtn").classList.toggle("hide",!LAST_REVOKED_TOKEN);
   setAuthMode("login")
 }
 $("showLoginBtn").onclick=()=>setAuthMode("login");
@@ -2400,8 +2459,49 @@ $("signupForm").onsubmit=async e=>{
   }
 };
 $("logoutBtn").onclick=async()=>{
+  LAST_REVOKED_TOKEN=ACCESS_TOKEN;
   try{await sb.auth.signOut({scope:"global"})}catch(e){console.error(e)}
   showSignedOut()
+};
+$("securityCheckBtn").onclick=()=>{
+  $("sessionMetadata").textContent=maskedSessionMetadata(ACCESS_TOKEN);
+  $("securityResult").textContent="아직 요청하지 않았습니다.";
+  openModal("securityModal")
+};
+$("runLoggedInProtectedTestBtn").onclick=async()=>{
+  try{
+    const r=await t07ProtectedRequest(ACCESS_TOKEN);
+    $("securityResult").textContent="POST /functions/v1/t07-protected → HTTP "+r.status+" · "+JSON.stringify(r.data);
+  }catch(e){$("securityResult").textContent="요청 실패 · "+e.message}
+};
+$("anonProtectedTestBtn").onclick=async()=>{
+  try{
+    const r=await t07ProtectedRequest(null);
+    $("loggedOutSecurityResult").classList.remove("hide");
+    $("loggedOutSecurityResult").textContent="POST /functions/v1/t07-protected → HTTP "+r.status+" · "+JSON.stringify(r.data);
+  }catch(e){setAuthStatus("비로그인 보호 요청 확인에 실패했습니다.",true)}
+};
+$("revokedSessionTestBtn").onclick=async()=>{
+  try{
+    const r=await t07ProtectedRequest(LAST_REVOKED_TOKEN);
+    $("loggedOutSecurityResult").classList.remove("hide");
+    $("loggedOutSecurityResult").textContent="로그아웃 전과 같은 POST /functions/v1/t07-protected → HTTP "+r.status+" · "+JSON.stringify(r.data);
+  }catch(e){setAuthStatus("로그아웃 세션 재요청 확인에 실패했습니다.",true)}
+};
+$("changePasswordBtn").onclick=()=>openModal("passwordModal");
+$("passwordChangeForm").onsubmit=async e=>{
+  e.preventDefault();
+  const current=$("currentPassword").value,next=$("newPassword").value,confirmNext=$("newPassword2").value;
+  if(next!==confirmNext){toast("새 비밀번호 확인 값이 일치하지 않습니다.");return}
+  if(next.length<8){toast("새 비밀번호는 8자 이상으로 입력하세요.");return}
+  LAST_REVOKED_TOKEN=ACCESS_TOKEN;
+  const {error}=await sb.auth.updateUser({password:next,current_password:current});
+  $("currentPassword").value="";$("newPassword").value="";$("newPassword2").value="";
+  if(error){toast("비밀번호 변경에 실패했습니다.");return}
+  closeModal("passwordModal");
+  try{await sb.auth.signOut({scope:"global"})}catch{}
+  showSignedOut();
+  setAuthStatus("비밀번호를 변경했습니다. 새 비밀번호로 다시 로그인해 주세요.")
 };
 $("requestLegacyBtn").onclick=async()=>{
   try{
