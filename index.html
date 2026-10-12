@@ -1732,7 +1732,7 @@ input:focus,select:focus,textarea:focus{
 .t07LockNotice{margin-top:15px;padding:12px 14px;border:1px solid #cfdcc9;background:#f4f8f1;color:#455541;border-radius:14px;font-size:13px;line-height:1.5}
 
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3"></script>
 </head>
 <body>
 <section id="authGate" class="authGate">
@@ -2278,7 +2278,7 @@ async function enterAuthenticatedApp(session){
   try{await load()}catch(e){console.error(e);toast("내 자료를 불러오지 못했습니다.")}
 }
 function clearDiaryState(){
-  S.plans=[];S.history=[];S.tasks=[];S.execs=[];S.refs=[];S.taskRefs=[];S.events=[];S.progress=[];S.importantDates=[];S.dailyRecords=[];
+  S.plans=[];S.history=[];S.tasks=[];S.execs=[];S.refs=[];S.taskRefs=[];S.events=[];S.progress=[];S.importantDates=[];S.dailyRecords=[];S.experimentSetup=null;S.observations=[];S.ruleChanges=[];
   S.plan=null
 }
 function showSignedOut(){
@@ -2336,6 +2336,26 @@ async function bootstrapAuth(){
   if(error||!data.session){showSignedOut();return}
   await enterAuthenticatedApp(data.session)
 }
+
+const S={
+  plans:[],history:[],tasks:[],execs:[],refs:[],taskRefs:[],events:[],progress:[],importantDates:[],dailyRecords:[],
+  experimentSetup:null,observations:[],ruleChanges:[],
+  plan:null,mainDate:null,planDate:null,calendarMonth:null,
+  editingPlan:null,editingTask:null,finishingTask:null,editingImportantDate:null
+};
+const PRIORITY={high:"높음",medium:"중간",low:"낮음"};
+const $=id=>document.getElementById(id);
+const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul"}).format(new Date());
+const localDay=v=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul"}).format(new Date(v));
+const fmtDate=d=>d?new Date(d+"T00:00:00+09:00").toLocaleDateString("ko-KR",{month:"numeric",day:"numeric"}):"-";
+const fmtLongDate=d=>new Date(d+"T00:00:00+09:00").toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"long"});
+const fmtDateTime=d=>new Date(d).toLocaleString("ko-KR",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
+const mins=n=>{n=Number(n)||0;const h=Math.floor(n/60),m=Math.round(n%60);return h?(h+"시간"+(m?" "+m+"분":"")):m+"분"};
+const num=n=>{const x=Number(n)||0;return Number.isInteger(x)?String(x):String(Math.round(x*100)/100)};
+function toast(msg){const e=$("toast");e.textContent=msg;e.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>e.classList.remove("show"),2200)}
+function openModal(id){$(id).classList.add("open")}function closeModal(id){$(id).classList.remove("open")}
+function clear(e){while(e.firstChild)e.removeChild(e.firstChild)}
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
 
 const activeTasks=()=>S.tasks.filter(t=>!t.deleted_at);
 const planTasks=pid=>activeTasks().filter(t=>t.plan_id===pid);
