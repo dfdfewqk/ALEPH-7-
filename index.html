@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="pds-build" content="2026-10-12-t07-security-evidence-v3">
+<meta name="pds-build" content="2026-10-12-t07-server-derived-days-v4">
 <title>말과 함께 성장하는 다이어리</title>
 <style>
 :root{
@@ -1894,16 +1894,16 @@ input:focus,select:focus,textarea:focus{
       <div class="journalTitle">1일차 시작 전에 규칙 고정</div>
       <div class="experimentFields">
         <label>관찰할 목표<select id="expPlanId"></select></label>
-        <label>지표<input id="expMetricName" value="실제 수행 시간"></label>
-        <label>단위<input id="expUnit" value="분"></label>
+        <label>지표<input id="expMetricName" value="실제 수행 시간" readonly></label>
+        <label>단위<input id="expUnit" value="분" readonly></label>
         <label>주 시작 요일<select id="expWeekStart"><option value="월요일">월요일</option><option value="일요일">일요일</option></select></label>
         <label class="full">질문<input id="expQuestion" value="계획 규칙을 바꾸면 하루 실제 수행 시간이 달라지는가?"></label>
-        <label class="full">계산 규칙<textarea id="expCalcRule">해당 날짜 execution_records.actual_minutes 합계</textarea></label>
+        <label class="full">계산 규칙<textarea id="expCalcRule" readonly>선택한 목표의 해당 날짜 execution_records.actual_minutes 합계</textarea></label>
         <label class="full">처음 계획 규칙<input id="expInitialRule" placeholder="예: 하루 목표 시간 60분"></label>
-        <label>누락값 처리<input id="expMissingRule" value="실행 기록이 없으면 0분으로 처리"></label>
-        <label>중복값 처리<input id="expDuplicateRule" value="같은 실행 기록 ID는 한 번만 계산"></label>
-        <label>이상치 처리<input id="expOutlierRule" value="값이 커도 삭제하지 않고 그대로 사용"></label>
-        <label>반올림<input id="expRoundingRule" value="평균은 소수 첫째 자리에서 반올림"></label>
+        <label>누락값 처리<input id="expMissingRule" value="실행 기록이 없으면 0분으로 처리" readonly></label>
+        <label>중복값 처리<input id="expDuplicateRule" value="같은 execution_record ID는 한 번만 계산" readonly></label>
+        <label>이상치 처리<input id="expOutlierRule" value="값이 커도 삭제하지 않고 그대로 사용" readonly></label>
+        <label>반올림<input id="expRoundingRule" value="평균은 소수 첫째 자리에서 반올림하여 정수로 표시" readonly></label>
       </div>
       <button id="saveExperimentSetupBtn" class="btn primary" type="button">5일 실험 시작 설정 저장</button>
     </div>
@@ -2353,7 +2353,8 @@ const RPC_MAP={
   complete_task:"t07_complete_task",
   cancel_task_completion:"t07_cancel_task_completion",
   sync_daily_goal_record:"t07_sync_daily_goal_record",
-  apply_rule_change:"t07_apply_rule_change"
+  apply_rule_change:"t07_apply_rule_change",
+  record_today_observation:"t07_record_today_observation"
 };
 function mapPath(path){
   const i=path.indexOf("?");
@@ -3826,6 +3827,15 @@ function renderExperiment(){
   [["합계",num(total)+(setup?" "+setup.unit:"")],["전체 평균",obs.length?num(Math.round(avg))+(setup?" "+setup.unit:""):"-"],["변경 전 평균",before.length?num(Math.round(beforeAvg))+(setup?" "+setup.unit:""):"-"],["변경 후 평균",after.length?num(Math.round(afterAvg))+(setup?" "+setup.unit:""):"-"]].forEach(([label,value])=>{
     const box=el("div",null);box.append(el("span",null,label),el("strong",null,value));summary.append(box)
   });
+  if(obs.length){
+    const formula=el("div","contextBox");
+    const values=obs.map(r=>num(Number(r.metric_value||0)));
+    formula.textContent="손계산 대조 · "+values.join(" + ")+" = "+num(total)+(setup?" "+setup.unit:"")+" · "+num(total)+" ÷ "+obs.length+" = "+num(Math.round(avg))+(setup?" "+setup.unit:"");
+    summary.after(formula);
+    formula.classList.add("experimentFormula")
+  }
+  const previousFormula=summary.parentElement.querySelectorAll(".experimentFormula");
+  if(previousFormula.length>1)previousFormula[0].remove();
 
   $("saveTodayObservationBtn").disabled=!setup||obs.length>=5;
   $("saveTodayObservationBtn").textContent=obs.length>=5?"5일 기록 완료":"오늘 실행 기록을 Day "+(obs.length+1)+"로 저장";
@@ -3876,13 +3886,8 @@ $("saveTodayObservationBtn").onclick=async()=>{
     const obs=S.observations.slice().sort((a,b)=>a.day_number-b.day_number);
     if(obs.length>=5)throw new Error("이미 5일 기록을 완료했습니다.");
     if(obs.length===2&&!S.ruleChanges.length)throw new Error("Day 3 전에 계획 규칙을 먼저 변경하세요.");
-    const value=dayStats(today()).actual;
-    await api("daily_observations",{method:"POST",body:JSON.stringify({
-      day_number:obs.length+1,
-      metric_value:value,
-      note:value?"오늘 실행 기록의 실제 수행 시간 합계":"오늘 실행 기록이 없어 누락값 규칙에 따라 0분"
-    })});
-    await load(true);toast("오늘 기록을 저장했습니다.")
+    await rpc("record_today_observation",{});
+    await load(true);toast("오늘 기록을 서버 실행 기록에서 계산해 저장했습니다.")
   }catch(e){toast(e.message)}
 };
 $("saveRuleChangeBtn").onclick=async()=>{
