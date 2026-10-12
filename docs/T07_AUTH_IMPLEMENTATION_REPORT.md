@@ -10,6 +10,7 @@
 - 로그인 방식: **Email + Password**
 - 브라우저 클라이언트: **@supabase/supabase-js 2.117.3**
 - 데이터 권한: **PostgreSQL Row Level Security(RLS)**
+- 비밀번호 저장: **Supabase Auth의 bcrypt + 계정별 무작위 salt** (해시는 `auth.users.encrypted_password`에 저장)
 - 사용자 식별: Supabase Auth access token의 JWT `sub` / `session_id`
 - 로그아웃 세션 추가 검증: `auth.sessions`에 현재 `session_id`가 실제로 존재하는지 확인하는 `t07_is_active_session()`
 
@@ -17,7 +18,7 @@
 
 ## ② 왜 그걸 골랐나
 
-기존 T06이 이미 Supabase PostgreSQL을 사용하고 있어 Supabase Auth의 사용자 ID와 PostgreSQL RLS를 직접 연결할 수 있다는 점을 우선했다. 비밀번호 저장과 검증을 직접 구현하지 않고 인증 서비스에 맡겨 직접 구현에서 생길 수 있는 보안 오류를 줄였다.
+기존 T06이 이미 Supabase PostgreSQL을 사용하고 있어 Supabase Auth의 사용자 ID와 PostgreSQL RLS를 직접 연결할 수 있다는 점을 우선했다. 비밀번호 저장과 검증을 직접 구현하지 않고 인증 서비스에 맡겨 직접 구현에서 생길 수 있는 보안 오류를 줄였다. Supabase Auth는 비밀번호 원문이 아니라 bcrypt 해시와 무작위 salt를 저장한다.
 
 함께 검토한 방법은 직접 세션 서버와 비밀번호 해시를 구현하는 방식이다. 이 방식은 비밀번호 저장, 세션 발급·폐기, 쿠키/토큰 보안까지 직접 책임져야 하므로 이번 과제에서는 기존 Supabase 구조와 바로 연결되는 Supabase Auth를 선택했다.
 
@@ -106,3 +107,4 @@
 - **MFA(두 번째 인증 수단)를 구현하지 않았다.** 비밀번호가 노출되면 추가 인증 단계가 없다.
 - **비밀번호 재설정 전용 사용자 화면을 아직 구현하지 않았다.** 비밀번호를 잊은 사용자의 복구 흐름이 완전하지 않다.
 - **보안 이벤트 전용 감사 로그 화면을 구현하지 않았다.** 누가 언제 실패한 접근을 시도했는지를 앱 안에서 장기 추적하기 어렵다.
+- **Supabase의 leaked-password protection은 현재 프로젝트에서 꺼져 있다.** 이미 유출된 비밀번호를 추가로 차단하는 보호가 적용되지 않은 상태다.
