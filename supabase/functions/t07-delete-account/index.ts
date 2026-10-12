@@ -12,7 +12,7 @@ function json(status: number, body: unknown) {
 }
 
 async function activeSession(url: string, anonKey: string, token: string) {
-  const r = await fetch(url + "/rest/v1/rpc/t07_is_active_session", {
+  const r = await fetch(url + "/rest/v1/rpc/t07_session_status", {
     method: "POST",
     headers: {
       apikey: anonKey,
