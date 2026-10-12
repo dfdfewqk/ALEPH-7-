@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="pds-build" content="2026-10-12-t07-auth-v1">
+<meta name="pds-build" content="2026-10-12-t07-auth-experiment-v2">
 <title>말과 함께 성장하는 다이어리</title>
 <style>
 :root{
@@ -2296,7 +2296,8 @@ const TABLE_MAP={
 const RPC_MAP={
   complete_task:"t07_complete_task",
   cancel_task_completion:"t07_cancel_task_completion",
-  sync_daily_goal_record:"t07_sync_daily_goal_record"
+  sync_daily_goal_record:"t07_sync_daily_goal_record",
+  apply_rule_change:"t07_apply_rule_change"
 };
 function mapPath(path){
   const i=path.indexOf("?");
@@ -2390,6 +2391,21 @@ $("requestLegacyBtn").onclick=async()=>{
     if(String(e.message).toLowerCase().includes("duplicate"))toast("이미 연결 요청이 있습니다.");
     else toast("연결 요청을 확인하지 못했습니다.")
   }
+};
+$("deleteAccountBtn").onclick=async()=>{
+  if(!confirm("계정을 삭제하면 이 계정에 연결된 T07 다이어리 자료도 함께 삭제됩니다. 계속할까요?"))return;
+  try{
+    const r=await fetch(U+"/functions/v1/t07-delete-account",{
+      method:"POST",
+      headers:{apikey:K,Authorization:"Bearer "+ACCESS_TOKEN,"Content-Type":"application/json"},
+      body:"{}"
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d?.error||"계정 삭제에 실패했습니다.");
+    try{await sb.auth.signOut({scope:"local"})}catch{}
+    showSignedOut();
+    setAuthStatus("계정과 연결된 T07 자료를 삭제했습니다.")
+  }catch(e){toast(e.message)}
 };
 sb.auth.onAuthStateChange((event,session)=>{
   if(session?.access_token)ACCESS_TOKEN=session.access_token;
@@ -3651,9 +3667,137 @@ $("toggleUpcomingBtn").onclick=()=>{$("upcomingFold").classList.toggle("open")};
 $("togglePastBtn").onclick=()=>{$("pastFold").classList.toggle("open")};
 $("newPlanBtn").onclick=()=>openPlanForm();
 
+/* T07 5-DAY EXPERIMENT */
+function fillExperimentPlanSelect(){
+  const sel=$("expPlanId");if(!sel)return;clear(sel);
+  const rows=S.plans.filter(p=>(p.progress_mode||"custom")==="time");
+  if(!rows.length){
+    const o=el("option",null,"시간 기준 목표가 없습니다.");o.value="";sel.append(o);return
+  }
+  rows.forEach(p=>{const o=el("option",null,p.title);o.value=p.id;sel.append(o)});
+  const chosen=S.experimentSetup?.plan_id||rows[0].id;sel.value=chosen;
+  const p=S.plans.find(x=>x.id===sel.value);
+  if(p&&!S.experimentSetup)$("expInitialRule").value="하루 목표 시간 "+Number(p.daily_target_minutes||0)+"분"
+}
+function renderExperiment(){
+  if(!$("experimentProgress"))return;
+  fillExperimentPlanSelect();
+  const setup=S.experimentSetup;
+  const obs=S.observations.slice().sort((a,b)=>a.day_number-b.day_number);
+  const change=S.ruleChanges[0]||null;
+  $("experimentProgress").textContent=obs.length+" / 5일";
+  $("experimentSetupFormWrap").classList.toggle("hide",!!setup);
+  $("experimentSetupSaved").classList.toggle("hide",!setup);
+
+  if(setup){
+    const plan=S.plans.find(p=>p.id===setup.plan_id);
+    $("experimentSetupSaved").textContent=
+      "질문: "+setup.question+
+      " · 지표: "+setup.metric_name+" ("+setup.unit+")"+
+      " · 계산: "+setup.calculation_rule+
+      " · 목표: "+(plan?.title||"연결 목표")+
+      " · 처음 규칙: "+setup.initial_plan_rule;
+  }
+
+  const out=$("experimentDays");clear(out);
+  if(!obs.length)out.append(el("div","empty","아직 Day 기록이 없습니다."));
+  obs.forEach(r=>{
+    const row=el("div","experimentDay");
+    const day=el("div",null);day.append(el("strong",null,"Day "+r.day_number),el("span",null,fmtDate(r.observation_date)));
+    const mid=el("div",null);mid.append(el("strong",null,num(r.metric_value)+" "+(setup?.unit||"")),el("span",null,r.note||"실행 기록에서 계산"));
+    const status=el("strong",null,"저장됨");
+    row.append(day,mid,status);out.append(row)
+  });
+
+  const showChange=!!setup&&obs.length===2&&!change;
+  $("ruleChangeBox").classList.toggle("hide",!showChange);
+  if(showChange){
+    const p=S.plans.find(x=>x.id===setup.plan_id);
+    $("expNewDailyMinutes").value=Number(p?.daily_target_minutes||0)||"";
+  }
+
+  const total=obs.reduce((n,r)=>n+Number(r.metric_value||0),0);
+  const avg=obs.length?total/obs.length:0;
+  const before=obs.filter(r=>r.day_number<=2),after=obs.filter(r=>r.day_number>=3);
+  const beforeAvg=before.length?before.reduce((n,r)=>n+Number(r.metric_value||0),0)/before.length:0;
+  const afterAvg=after.length?after.reduce((n,r)=>n+Number(r.metric_value||0),0)/after.length:0;
+  const summary=$("experimentSummary");clear(summary);
+  [["합계",num(total)+(setup?" "+setup.unit:"")],["전체 평균",obs.length?num(Math.round(avg))+(setup?" "+setup.unit:""):"-"],["변경 전 평균",before.length?num(Math.round(beforeAvg))+(setup?" "+setup.unit:""):"-"],["변경 후 평균",after.length?num(Math.round(afterAvg))+(setup?" "+setup.unit:""):"-"]].forEach(([label,value])=>{
+    const box=el("div",null);box.append(el("span",null,label),el("strong",null,value));summary.append(box)
+  });
+
+  $("saveTodayObservationBtn").disabled=!setup||obs.length>=5;
+  $("saveTodayObservationBtn").textContent=obs.length>=5?"5일 기록 완료":"오늘 실행 기록을 Day "+(obs.length+1)+"로 저장";
+
+  if(change){
+    const note=el("div","contextBox","규칙 변경 완료 · "+change.old_rule+" → "+change.new_rule+" · "+change.reason);
+    if(!$("experimentSetupSaved").nextElementSibling?.classList?.contains("experimentRuleNote")){
+      note.classList.add("experimentRuleNote");
+      $("experimentSetupSaved").after(note)
+    }else{
+      $("experimentSetupSaved").nextElementSibling.textContent="규칙 변경 완료 · "+change.old_rule+" → "+change.new_rule+" · "+change.reason
+    }
+  }else{
+    const old=$("experimentSetupSaved").nextElementSibling;
+    if(old?.classList?.contains("experimentRuleNote"))old.remove()
+  }
+}
+$("expPlanId").addEventListener("change",()=>{
+  if(S.experimentSetup)return;
+  const p=S.plans.find(x=>x.id===$("expPlanId").value);
+  if(p)$("expInitialRule").value="하루 목표 시간 "+Number(p.daily_target_minutes||0)+"분"
+});
+$("saveExperimentSetupBtn").onclick=async()=>{
+  try{
+    const planId=$("expPlanId").value;
+    if(!planId)throw new Error("관찰할 시간 기준 목표를 먼저 만들어 주세요.");
+    const d={
+      plan_id:planId,
+      question:$("expQuestion").value.trim(),
+      metric_name:$("expMetricName").value.trim(),
+      unit:$("expUnit").value.trim(),
+      calculation_rule:$("expCalcRule").value.trim(),
+      initial_plan_rule:$("expInitialRule").value.trim(),
+      missing_rule:$("expMissingRule").value.trim(),
+      duplicate_rule:$("expDuplicateRule").value.trim(),
+      outlier_rule:$("expOutlierRule").value.trim(),
+      rounding_rule:$("expRoundingRule").value.trim(),
+      week_start:$("expWeekStart").value
+    };
+    if(Object.values(d).some(v=>String(v??"").trim()===""))throw new Error("1일차 규칙을 모두 입력해 주세요.");
+    await api("experiment_setup",{method:"POST",body:JSON.stringify(d)});
+    await load(true);toast("5일 실험 규칙을 저장했습니다.")
+  }catch(e){toast(e.message)}
+};
+$("saveTodayObservationBtn").onclick=async()=>{
+  try{
+    if(!S.experimentSetup)throw new Error("먼저 1일차 실험 규칙을 저장하세요.");
+    const obs=S.observations.slice().sort((a,b)=>a.day_number-b.day_number);
+    if(obs.length>=5)throw new Error("이미 5일 기록을 완료했습니다.");
+    if(obs.length===2&&!S.ruleChanges.length)throw new Error("Day 3 전에 계획 규칙을 먼저 변경하세요.");
+    const value=dayStats(today()).actual;
+    await api("daily_observations",{method:"POST",body:JSON.stringify({
+      day_number:obs.length+1,
+      metric_value:value,
+      note:value?"오늘 실행 기록의 실제 수행 시간 합계":"오늘 실행 기록이 없어 누락값 규칙에 따라 0분"
+    })});
+    await load(true);toast("오늘 기록을 저장했습니다.")
+  }catch(e){toast(e.message)}
+};
+$("saveRuleChangeBtn").onclick=async()=>{
+  try{
+    const minutes=Number($("expNewDailyMinutes").value||0),reason=$("expRuleReason").value.trim();
+    if(minutes<=0)throw new Error("새 하루 목표 시간을 입력하세요.");
+    if(!reason)throw new Error("규칙을 바꾸는 이유를 입력하세요.");
+    await rpc("apply_rule_change",{p_new_daily_minutes:minutes,p_reason:reason});
+    $("expRuleReason").value="";
+    await load(true);toast("Day 2 뒤 규칙 변경을 저장했습니다.")
+  }catch(e){toast(e.message)}
+};
+
 /* EXPORT */
 $("exportBtn").onclick=()=>{
-  const data={exported_at:new Date().toISOString(),timezone:"Asia/Seoul",plans:S.plans,plan_history:S.history,plan_progress_items:S.progress,tasks:S.tasks,execution_records:S.execs,completion_events:S.events,task_reflections:S.taskRefs,reflections:S.refs,important_dates:S.importantDates,daily_goal_records:S.dailyRecords};
+  const data={exported_at:new Date().toISOString(),timezone:"Asia/Seoul",plans:S.plans,plan_history:S.history,plan_progress_items:S.progress,tasks:S.tasks,execution_records:S.execs,completion_events:S.events,task_reflections:S.taskRefs,reflections:S.refs,important_dates:S.importantDates,daily_goal_records:S.dailyRecords,t07_experiment_setup:S.experimentSetup?[S.experimentSetup]:[],t07_daily_observations:S.observations,t07_rule_changes:S.ruleChanges};
   const u=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"})),a=document.createElement("a");a.href=u;a.download="pds-diary-export.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)
 };
 
@@ -3667,7 +3811,7 @@ function refreshOpenViews(){
   if($("planDetailModal").classList.contains("open"))drawPlanDetail();
   if($("calendarModal").classList.contains("open"))drawCalendar()
 }
-function drawAll(){$("todayLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"});drawMainJournal()}
+function drawAll(){$("todayLabel").textContent=new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"});drawMainJournal();renderExperiment()}
 window.addEventListener("storage",e=>{if(e.key&&e.key.startsWith(TIMER_PREFIX)){drawRunningTimerBanner();refreshOpenViews()}});
 setInterval(()=>{if(runningTimer())drawRunningTimerBanner()},30000);
 
@@ -3709,6 +3853,15 @@ async function load(skipAutoComplete=false){
     api("important_dates?select=*&order=date.asc,created_at.asc"),
     api("daily_goal_records?select=*&order=record_date.asc,created_at.asc")
   ]);
+  const [setupRows,observations,ruleChanges]=await Promise.all([
+    api("experiment_setup?select=*&limit=1"),
+    api("daily_observations?select=*&order=day_number.asc"),
+    api("rule_changes?select=*&order=changed_at.asc")
+  ]);
+  S.experimentSetup=setupRows?.[0]||null;
+  S.observations=observations||[];
+  S.ruleChanges=ruleChanges||[];
+  $("requestLegacyBtn").classList.toggle("hide",S.plans.length>0);
   if(!skipAutoComplete){
     const changed=await autoCompleteEligiblePlans();
     if(changed)return load(true)
