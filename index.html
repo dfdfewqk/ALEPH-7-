@@ -1731,6 +1731,23 @@ input:focus,select:focus,textarea:focus{
 .sessionActions{display:flex;gap:7px;flex-wrap:wrap}
 .t07LockNotice{margin-top:15px;padding:12px 14px;border:1px solid #cfdcc9;background:#f4f8f1;color:#455541;border-radius:14px;font-size:13px;line-height:1.5}
 
+
+/* T07 EXPERIMENT */
+.experimentCard{display:grid;gap:14px}
+.experimentForm{display:grid;gap:12px}
+.experimentFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.experimentFields .full{grid-column:1/-1}
+.experimentFields label{display:grid;gap:6px;font-size:11px;font-weight:900;color:#586354}
+.experimentFields input,.experimentFields textarea,.experimentFields select{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff}
+.experimentDays{display:grid;gap:8px}
+.experimentDay{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.experimentDay strong{font-size:12px}.experimentDay span{font-size:10px;color:var(--muted)}
+.experimentSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.experimentSummary>div{padding:10px;border:1px solid var(--line);border-radius:12px;background:#fafbf8}
+.experimentSummary span{display:block;font-size:10px;color:var(--muted)}.experimentSummary strong{display:block;margin-top:4px;font-size:16px}
+.ruleChangeBox{border:1px solid #dccfb7;background:#fffaf0;border-radius:14px;padding:12px}
+@media(max-width:680px){.experimentFields{grid-template-columns:1fr}.experimentFields .full{grid-column:auto}.experimentSummary{grid-template-columns:repeat(2,1fr)}.experimentDay{grid-template-columns:1fr auto}.experimentDay>div:first-child{grid-column:1/-1}}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3"></script>
 </head>
@@ -1763,6 +1780,7 @@ input:focus,select:focus,textarea:focus{
   <div><strong>🔒 로그인된 다이어리</strong><div id="sessionInfo" class="sessionInfo">내 계정 자료만 표시됩니다.</div></div>
   <div class="sessionActions">
     <button id="requestLegacyBtn" class="btn ghost" type="button">기존 T06 자료 연결 요청</button>
+    <button id="deleteAccountBtn" class="btn ghost" type="button">계정 삭제</button>
     <button id="logoutBtn" class="btn danger" type="button">로그아웃</button>
   </div>
 </div>
@@ -1857,6 +1875,52 @@ input:focus,select:focus,textarea:focus{
 <section class="section achievedSection" data-theme-label="TOGETHER WE GREW">
   <div class="head"><div><div class="sectionKicker">TOGETHER WE GREW</div><h2>내가 해낸 일</h2></div></div>
   <div id="achievedGoals" class="doneGroups"></div>
+</section>
+
+<section class="section" id="t07ExperimentSection" data-theme-label="T07 · 5 DAY TEST">
+  <div class="head">
+    <div><div class="sectionKicker">T07 · 5 DAY TEST</div><h2>잠긴 앱 5일 사용 기록</h2></div>
+    <span id="experimentProgress" class="pill">0 / 5일</span>
+  </div>
+  <div class="journalCard experimentCard">
+    <div id="experimentSetupFormWrap" class="experimentForm">
+      <div class="journalTitle">1일차 시작 전에 규칙 고정</div>
+      <div class="experimentFields">
+        <label>관찰할 목표<select id="expPlanId"></select></label>
+        <label>지표<input id="expMetricName" value="실제 수행 시간"></label>
+        <label>단위<input id="expUnit" value="분"></label>
+        <label>주 시작 요일<select id="expWeekStart"><option value="월요일">월요일</option><option value="일요일">일요일</option></select></label>
+        <label class="full">질문<input id="expQuestion" value="계획 규칙을 바꾸면 하루 실제 수행 시간이 달라지는가?"></label>
+        <label class="full">계산 규칙<textarea id="expCalcRule">해당 날짜 execution_records.actual_minutes 합계</textarea></label>
+        <label class="full">처음 계획 규칙<input id="expInitialRule" placeholder="예: 하루 목표 시간 60분"></label>
+        <label>누락값 처리<input id="expMissingRule" value="실행 기록이 없으면 0분으로 처리"></label>
+        <label>중복값 처리<input id="expDuplicateRule" value="같은 실행 기록 ID는 한 번만 계산"></label>
+        <label>이상치 처리<input id="expOutlierRule" value="값이 커도 삭제하지 않고 그대로 사용"></label>
+        <label>반올림<input id="expRoundingRule" value="평균은 소수 첫째 자리에서 반올림"></label>
+      </div>
+      <button id="saveExperimentSetupBtn" class="btn primary" type="button">5일 실험 시작 설정 저장</button>
+    </div>
+
+    <div id="experimentSetupSaved" class="contextBox hide"></div>
+
+    <div class="actions">
+      <button id="saveTodayObservationBtn" class="btn primary" type="button">오늘 실행 기록을 Day로 저장</button>
+    </div>
+
+    <div id="experimentDays" class="experimentDays"></div>
+
+    <div id="ruleChangeBox" class="ruleChangeBox hide">
+      <div class="journalTitle">Day 2 뒤 · Day 3 전에 계획 규칙 한 번 변경</div>
+      <div class="experimentFields">
+        <label>새 하루 목표 시간(분)<input id="expNewDailyMinutes" type="number" min="1" step="1" placeholder="예: 70"></label>
+        <label class="full">바꾸는 이유<textarea id="expRuleReason" placeholder="왜 이 규칙으로 바꾸는지 적어 주세요."></textarea></label>
+      </div>
+      <button id="saveRuleChangeBtn" class="btn primary" type="button">규칙 변경 저장</button>
+    </div>
+
+    <div id="experimentSummary" class="experimentSummary"></div>
+    <div class="muted">Day 1·2 저장 뒤 규칙 변경을 완료해야 Day 3을 저장할 수 있습니다. 날짜는 Asia/Seoul 기준 오늘 날짜로 자동 기록됩니다.</div>
+  </div>
 </section>
 
 <section class="section overdueSection">
