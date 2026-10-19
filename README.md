@@ -2,7 +2,7 @@
 
 T06 최종 상태를 보존하고 Supabase Auth와 RLS를 추가한 T07 제출 소스.
 
-**실행 URL:** https://dfdfewqk.github.io/ALEPH-7/
+**실행 URL:** https://dfdfewqk.github.io/ALEPH-7-/
 
 **대체 배포 URL:** https://dfdfewqk.github.io/Horse-Journey-Diary-ALEPH/t07/
 
@@ -46,7 +46,7 @@ Day 1~2(10/15~16)는 공부 할 일 예정 60분, Day 3~4(10/17~18)는 예정 12
 
 ## 2026-10-19 — T06 / T07 통합 확정
 
-- 공식 T07 실행: https://dfdfewqk.github.io/ALEPH-7/
+- 공식 T07 실행: https://dfdfewqk.github.io/ALEPH-7-/
 - T06 원본은 그대로 보존하고, 이미 T07에 복제된 T06 ID를 실제 5일 실험을 소유한 인증 완료 계정으로 연결했다.
 - T06에서 추가로 확인한 일일 목표 기록 1건을 같은 ID로 T07에 복사했다. 기존 실험 기록이나 다른 사람의 데이터는 변경하지 않았다.
 - 통합 후 T07 계정 데이터: 목표 7건, 할 일 34건, 실행 19건, 완료 이벤트 25건, 일일 목표 21건.
@@ -62,3 +62,5 @@ Day 1~2(10/15~16)는 공부 할 일 예정 60분, Day 3~4(10/17~18)는 예정 12
 - **계획 변경:** 10/17 16:43 KST 공부 할 일 예정 시간 60→120분. 공식 실험 규칙 변경 이벤트는 0건.
 - **HTTP 보안 자동 점검:** GitHub Actions `T07 Public HTTP Evidence Check` 및 실행 아티팩트 참조. 미인증 요청·실사이트 동작 범위. 실제 A/B 양방향 로그인 요청은 별도 미검증.
 - 과거 공식 Day 버튼 기록 0/5를 사후 등록 5/5로 바꾸어 기재하지 않는다.
+
+- **Pages URL 표기 정정(2026-10-19):** 저장소 이름이 `ALEPH-7-`이므로 실행 주소에도 마지막 `-`이 포함되어야 한다. `/ALEPH-7/`는 GitHub Actions 공개 HTTP 검증에서 404를 반환해 잘못된 주소로 확인했다.

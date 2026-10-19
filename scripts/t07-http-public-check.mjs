@@ -20,7 +20,7 @@ async function check(name,url,options,expected,marker){
   console.log((pass?'PASS':'FAIL')+' '+name+' HTTP '+status+' '+detail);
 }
 const id='00000000-0000-4000-8000-000000000001';
-await check('pages_main','https://dfdfewqk.github.io/ALEPH-7/',{},[200],'플랜두씨 다이어리 2');
+await check('pages_main','https://dfdfewqk.github.io/ALEPH-7-/',{},[200],'플랜두씨 다이어리 2');
 await check('pages_mirror','https://dfdfewqk.github.io/Horse-Journey-Diary-ALEPH/t07/',{},[200],'플랜두씨 다이어리 2');
 await check('anon_read_plans',base+'/rest/v1/t07_plans?select=id&limit=1',{headers},[401,403]);
 await check('anon_read_retro_days',base+'/rest/v1/t07_retro_experiment_days?select=id&limit=1',{headers},[401,403]);
