@@ -1,0 +1,26 @@
+name: T07 Public HTTP Evidence Check
+on:
+  push:
+    paths:
+      - '.github/workflows/t07-http-verify.yml'
+      - 'scripts/t07-http-public-check.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-http:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Public Pages and unauthenticated HTTP boundary tests
+        run: node scripts/t07-http-public-check.mjs
+      - name: Publish status evidence without personal records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t07-public-http-evidence
+          path: artifacts/t07-public-http-evidence.json
+          if-no-files-found: warn
