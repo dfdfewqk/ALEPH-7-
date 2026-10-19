@@ -24,7 +24,7 @@
 
 ## ③ 어디를 어떻게 고쳤나
 
-### GitHub `index.html`
+### GitHub `index.html` (2026-10-19 추가 안정화: 중복 완료 가드, 이전 T06 연결 버튼 복구, 서버 로그아웃 오류 처리, 로그인 후 데이터 로드 분리, 사후 증거 내보내기)
 
 - 로그인/회원가입 첫 화면 추가
 - 로그인 전에는 다이어리 `load()`를 실행하지 않음
@@ -80,6 +80,8 @@
    - RLS와 보호 RPC가 private 함수를 사용하도록 변경
 
 ### Edge Functions
+
+`t07-protected`의 관리 권한 API가 원본 patch를 그대로 전달하지 않게 수정 허용 필드를 검증 전용으로 제한했다. 위 수정은 소스 보안 점검이며 A/B 실제 HTTP 실험을 대신하지 않는다.
 
 - `supabase/functions/t07-protected/index.ts`
   - 로그인/활성 세션 확인
